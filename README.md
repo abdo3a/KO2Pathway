@@ -55,7 +55,7 @@ Basic Mapping without Plotting:
 ````bash
 python ko2pathway.py --ko_clean KO_clean.tsv --exclude_terms exclude_terms.txt --output_file kegg_pathway_summary.tsv
 ````
-- This command will process the KO identifiers from KO_clean.tsv, filter out pathways listed in exclude_terms.txt, and generate the pathway summary in kegg_pathway_summary.tsv.
+- This command will process the KO identifiers from ```KO_clean.tsv```, filter out pathways listed in exclude_terms.txt, and generate the pathway summary in ```kegg_pathway_summary.tsv```.
 
 - Basic Mapping with Plotting:
 
@@ -71,7 +71,7 @@ python ko2pathway.py --ko_clean KO_clean.tsv --exclude_terms exclude_terms.txt -
 ````
 - This command will use the cached KO-to-pathway mapping stored in ko_pathway_cache.json if available, speeding up the process by avoiding redundant API calls.
 
-### Input File Formats
+## Input File Formats
 
 KO_clean.tsv
 
@@ -82,7 +82,7 @@ Gene_ID    ko:KXXXXXX
 Gene_ID    ko:KYYYYYY
 ...
 ````
-- Where Gene_ID is the identifier for the gene, and ko:KXXXXXX represents the KEGG Orthology (KO) identifier(s). Multiple KOs can be separated by commas.
+- Where Gene_ID is the identifier for the gene, and ko: KXXXXXX represents the KEGG Orthology (KO) identifier(s). Multiple KOs can be separated by commas.
 
 exclude_terms.txt
 
@@ -98,7 +98,7 @@ shigellosis
 human papillomavirus infection
 epstein-barr virus infection
 ````
-### Output
+## Output
 The tool generates a summary of pathways associated with the KO identifiers in KO_clean.tsv, which is saved as a TSV file (kegg_pathway_summary.tsv by default). This summary includes:
 
 pathway_id: The ID of the pathway (e.g., map00020).
@@ -108,6 +108,7 @@ pathway_description: A brief description of the pathway.
 KO_count: The number of KOs mapped to the pathway.
 
 - Example Output
+
 ````python-repl
 pathway_id    pathway_description                          KO_count
 map00020      Citrate cycle (TCA cycle)                    6
@@ -123,16 +124,15 @@ map00052      Galactose metabolism                         10
 KO2Pathway is released under the MIT License.
 
 ## Acknowledgments
-KEGG for providing pathway and KO data.
+KEGG for providing the pathway and KO data.
 
 The Python community for the excellent libraries used in this tool (pandas, requests, matplotlib, etc.).
 
 For more information or help, please contact [abdoallah.sharaf@uni-konstanz.de].
 
-````python
 
 This is the complete **README** in markdown format, covering everything from installation to usage, including file formats and options. Feel free to let me know if you'd like to make any additional changes or if there's something else you'd like to add!
-````
+
 
 
 

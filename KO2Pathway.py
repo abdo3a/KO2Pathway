@@ -13,16 +13,10 @@ from time import sleep
 # ------------------------
 
 def preprocess_input(input_file):
-    df = pd.read_csv(input_file, sep='\t', header=None, names=['gene', 'ko_raw'])
-    # Remove missing or '-' entries
-    df = df[df['ko_raw'].notna() & (df['ko_raw'] != "-")]
-    # Split comma-separated KO entries into multiple rows
-    df = df.assign(ko=df['ko_raw'].str.split(',')).explode('ko')
-    # Remove "ko:" prefix
+    df = pd.read_csv(input_file, sep='\t', header=None, names=['gene', 'ko'])
+    df = df[df['ko'].notna() & (df['ko'] != "-")]
+    df = df.assign(ko=df['ko'].str.split(',')).explode('ko')
     df['ko'] = df['ko'].str.replace('ko:', '', regex=False)
-    # Drop empty or invalid KO entries
-    df = df[df['ko'].str.match(r'^K\d{5}$', na=False)]
-    df = df.drop(columns=['ko_raw'])
     return df
 
 def fetch_ko_pathway_mapping(ko_list, cache_file=None):
@@ -123,6 +117,7 @@ def main():
     parser.add_argument("-p", "--plot", action="store_true", help="Enable circular bar plot output")
     parser.add_argument("-o", "--output", default="kegg_pathway_summary.tsv", help="Output summary TSV")
     parser.add_argument("--plotfile", default="top20_pathways_circular_barplot.svg", help="Output plot file name")
+    parser.add_argument("--ko_category", default=None, help="Output file for KO list per pathway category")
 
     args = parser.parse_args()
 
@@ -159,7 +154,20 @@ def main():
     summary_df.to_csv(args.output, sep='\t', index=False)
     print(f"✅ Summary saved to {args.output}")
 
-    # Step 7: Plot if requested
+    # Step 7: Save KO list per pathway if requested
+    if args.ko_category:
+        ko_grouped_df = (
+            pathway_df.groupby(["pathway_id", "pathway_description"])["ko"]
+            .apply(lambda x: ";".join(sorted(set(x))))
+            .reset_index(name="KO_list")
+        )
+        ko_grouped_df = ko_grouped_df.merge(
+            summary_df, on=["pathway_id", "pathway_description"], how="left"
+        )
+        ko_grouped_df.to_csv(args.ko_category, sep='\t', index=False)
+        print(f"📂 KO-per-pathway list saved to '{args.ko_category}'")
+
+    # Step 8: Plot if requested
     if args.plot:
         top20_df = summary_df.head(20)
         plot_circular_barplot(top20_df, args.plotfile)

@@ -13,10 +13,16 @@ from time import sleep
 # ------------------------
 
 def preprocess_input(input_file):
-    df = pd.read_csv(input_file, sep='\t', header=None, names=['gene', 'ko'])
-    df = df[df['ko'].notna() & (df['ko'] != "-")]
-    df = df[~df['ko'].str.contains(',', na=False)]  # Remove multiple KO entries
+    df = pd.read_csv(input_file, sep='\t', header=None, names=['gene', 'ko_raw'])
+    # Remove missing or '-' entries
+    df = df[df['ko_raw'].notna() & (df['ko_raw'] != "-")]
+    # Split comma-separated KO entries into multiple rows
+    df = df.assign(ko=df['ko_raw'].str.split(',')).explode('ko')
+    # Remove "ko:" prefix
     df['ko'] = df['ko'].str.replace('ko:', '', regex=False)
+    # Drop empty or invalid KO entries
+    df = df[df['ko'].str.match(r'^K\d{5}$', na=False)]
+    df = df.drop(columns=['ko_raw'])
     return df
 
 def fetch_ko_pathway_mapping(ko_list, cache_file=None):

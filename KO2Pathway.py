@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import requests
+from Bio.KEGG import REST
 import argparse
 import os
 from time import sleep
@@ -14,8 +14,9 @@ from time import sleep
 
 def preprocess_input(input_file):
     df = pd.read_csv(input_file, sep='\t', header=None, names=['gene', 'ko'])
-    df = df[df['ko'].notna() & (df['ko'] != "-")]
-    df = df.assign(ko=df['ko'].str.split(',')).explode('ko')
+    df = df[df['ko'].notna() & (df['ko'] != '-')]
+    df = df.assign(ko=df['ko'].str.split(','))
+    df = df.explode('ko')
     df['ko'] = df['ko'].str.replace('ko:', '', regex=False)
     return df
 
@@ -24,18 +25,19 @@ def fetch_ko_pathway_mapping(ko_list, cache_file=None):
         print(f"✅ Loading cached KO-pathway mapping from {cache_file}")
         mapping_df = pd.read_csv(cache_file, sep='\t')
     else:
-        print("🔎 Fetching KO-pathway mapping from KEGG API...")
+        print("🔎 Fetching KO-pathway mapping from KEGG API via Biopython...")
         records = []
         for ko in ko_list:
-            url = f"https://rest.kegg.jp/link/pathway/ko:{ko}"
-            r = requests.get(url)
-            if r.status_code == 200 and r.text.strip():
-                for line in r.text.strip().split("\n"):
+            try:
+                response = REST.kegg_link("pathway", f"ko:{ko}").read()
+                for line in response.strip().split("\n"):
                     parts = line.split("\t")
                     if len(parts) == 2:
                         pw = parts[1].replace("path:", "")
                         if pw.startswith("map"):
                             records.append({"ko": ko, "pathway_id": pw})
+            except Exception as e:
+                print(f"❌ Error fetching ko:{ko} — {e}")
             sleep(0.2)
         mapping_df = pd.DataFrame(records)
         if cache_file:
@@ -46,12 +48,11 @@ def fetch_ko_pathway_mapping(ko_list, cache_file=None):
 def fetch_pathway_descriptions(pathway_ids):
     desc_map = {}
     for pw in pathway_ids:
-        url = f"https://rest.kegg.jp/list/{pw}"
-        r = requests.get(url)
-        if r.status_code == 200 and r.text.strip():
-            desc = r.text.strip().split("\t")[1]
+        try:
+            response = REST.kegg_list(pw).read()
+            desc = response.strip().split("\t")[1]
             desc_map[pw] = desc
-        else:
+        except Exception:
             desc_map[pw] = "Unknown"
         sleep(0.2)
     return desc_map
@@ -59,7 +60,7 @@ def fetch_pathway_descriptions(pathway_ids):
 def plot_circular_barplot(df, output_plot):
     labels = df['pathway_description'].tolist()
     counts = df['KO_count'].to_numpy()
-    
+
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
     counts = np.concatenate((counts, [counts[0]]))
     angles += angles[:1]
@@ -117,7 +118,7 @@ def main():
     parser.add_argument("-p", "--plot", action="store_true", help="Enable circular bar plot output")
     parser.add_argument("-o", "--output", default="kegg_pathway_summary.tsv", help="Output summary TSV")
     parser.add_argument("--plotfile", default="top20_pathways_circular_barplot.svg", help="Output plot file name")
-    parser.add_argument("--ko_category", default=None, help="Output file for KO list per pathway category")
+    parser.add_argument("--ko_category", default=None, help="Output KO to pathway category file")
 
     args = parser.parse_args()
 
@@ -132,6 +133,11 @@ def main():
     unique_pathways = pathway_df["pathway_id"].unique()
     pathway_desc_map = fetch_pathway_descriptions(unique_pathways)
     pathway_df["pathway_description"] = pathway_df["pathway_id"].map(pathway_desc_map)
+
+    # Optional: Save detailed KO-pathway mapping
+    if args.ko_category:
+        pathway_df.to_csv(args.ko_category, sep='\t', index=False)
+        print(f"🗂️ KO-pathway category mapping saved to {args.ko_category}")
 
     # Step 4: Summarize
     summary_df = (
@@ -154,20 +160,7 @@ def main():
     summary_df.to_csv(args.output, sep='\t', index=False)
     print(f"✅ Summary saved to {args.output}")
 
-    # Step 7: Save KO list per pathway if requested
-    if args.ko_category:
-        ko_grouped_df = (
-            pathway_df.groupby(["pathway_id", "pathway_description"])["ko"]
-            .apply(lambda x: ";".join(sorted(set(x))))
-            .reset_index(name="KO_list")
-        )
-        ko_grouped_df = ko_grouped_df.merge(
-            summary_df, on=["pathway_id", "pathway_description"], how="left"
-        )
-        ko_grouped_df.to_csv(args.ko_category, sep='\t', index=False)
-        print(f"📂 KO-per-pathway list saved to '{args.ko_category}'")
-
-    # Step 8: Plot if requested
+    # Step 7: Plot if requested
     if args.plot:
         top20_df = summary_df.head(20)
         plot_circular_barplot(top20_df, args.plotfile)

@@ -128,6 +128,8 @@ KEGG for providing the pathway and KO data.
 
 The Python community for the excellent libraries used in this tool (pandas, requests, matplotlib, etc.).
 
+This work is supported through the Sequencing analysis (SequAna) core facility at the University of Konstanz [https://www.biologie.uni-konstanz.de/sequana/]
+
 For more information or help, please contact [abdoallah.sharaf@uni-konstanz.de].
 
 
